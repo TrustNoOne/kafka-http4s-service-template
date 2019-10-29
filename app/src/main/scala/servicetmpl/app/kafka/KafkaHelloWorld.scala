@@ -4,10 +4,10 @@ import cats.effect.{ ConcurrentEffect, ContextShift, Timer }
 import cats.implicits._
 import fs2._
 import fs2.kafka._
-import org.apache.logging.log4j.LogManager
 import servicetmpl.app.JsonCodec.HelloWorldCodec._
 import servicetmpl.app.JsonCodec._
-import servicetmpl.{ HelloWorld, HelloWorldRepo }
+import servicetmpl.helloworld.{ HelloWorld, HelloWorldRepo }
+import servicetmpl.utils.Logging
 
 import scala.concurrent.duration._
 import scala.util.control.NonFatal
@@ -27,14 +27,14 @@ private class KafkaHelloWorldImpl[F[_]: ContextShift: Timer](
     config: KafkaConfig,
     helloWorld: HelloWorldRepo[F]
 )(implicit F: ConcurrentEffect[F])
-    extends KafkaHelloWorld[F] {
-
-  private val logger = LogManager.getLogger(getClass)
+    extends KafkaHelloWorld[F]
+    with Logging {
+  private val log = getLogger[F]
 
   private val consumerSettings =
     ConsumerSettings[F, Unit, HelloWorld.Name](
       keyDeserializer = Deserializer.unit[F],
-      valueDeserializer = jsonDeserializer[F, HelloWorld.Name](logger)
+      valueDeserializer = jsonDeserializer[F, HelloWorld.Name](getLogger)
     ).withAutoOffsetReset(AutoOffsetReset.Latest)
       .withBootstrapServers(config.bootstrapServers)
       .withGroupId(config.groupId)
@@ -46,13 +46,13 @@ private class KafkaHelloWorldImpl[F[_]: ContextShift: Timer](
     .mapAsync(25) { committable =>
       helloWorld
         .hello(committable.record.value)
-        .flatMap(greeting => F.delay(logger.info(s"Greeting: ${greeting.greeting}")))
+        .flatMap(greeting => log.info(s"Greeting: ${greeting.greeting}"))
         .as(committable.offset)
     }
     .through(commitBatchWithin(100, 5.seconds))
     .recoverWith {
       case NonFatal(e) =>
-        Stream.eval(F.delay(logger.error(e.getMessage, e))) >>
+        Stream.eval(log.error(e.getMessage, e)) >>
           Stream.sleep(1.second) >>
           stream
     }

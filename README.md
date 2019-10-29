@@ -6,10 +6,11 @@ Todo:
 
 - [ ] Make messages idempotent (i.e. facts/events)
 - [ ] Use Tapir for http 
-- [ ] use testcontainers-scala with confluent platform + avro schemas (in IntegrationTest too!) https://github.com/confluentinc/examples/blob/5.3.1-post/cp-all-in-one/docker-compose.yml 
+- [x] use testcontainers-scala with confluent platform https://github.com/confluentinc/examples/blob/5.3.1-post/cp-all-in-one/docker-compose.yml
+- [ ] use avro serialization w/ schemas for messages 
 - [ ] helm/k8s deployment
 - [ ] more configuration
-- [ ] cleanup/better logging
+- [x] cleanup/better logging
 - [ ] other service to interact with this one, maybe some external http endpoint for http client
 - [ ] monitoring
 - [ ] write readme with examples

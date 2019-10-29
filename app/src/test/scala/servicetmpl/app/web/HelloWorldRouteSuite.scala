@@ -5,14 +5,14 @@ import cats.implicits._
 import minitest.SimpleTestSuite
 import org.http4s.implicits._
 import org.http4s.{ Method, Request, Response, Status }
-import servicetmpl.{ HelloWorld, HelloWorldRepo }
-import servicetmpl.HelloWorld.Greeting
+import servicetmpl.helloworld.HelloWorld.{ Greeting, Name }
+import servicetmpl.helloworld.HelloWorldRepo
 
 object HelloWorldRouteSuite extends SimpleTestSuite {
 
   val helloWorld: HelloWorldRepo[IO] = new HelloWorldRepo[IO] {
-    override def hello(n: HelloWorld.Name): IO[Greeting] = Greeting(s"${n.name} TEST").pure[IO]
-    override def recentHellos: IO[List[Greeting]]        = IO.pure(List(Greeting("g1"), Greeting("g2")))
+    override def hello(n: Name): IO[Greeting]     = Greeting(s"${n.name} TEST").pure[IO]
+    override def recentHellos: IO[List[Greeting]] = IO.pure(List(Greeting("g1"), Greeting("g2")))
   }
 
   val retHelloWorld: Response[IO] = {

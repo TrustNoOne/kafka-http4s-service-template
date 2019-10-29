@@ -3,9 +3,9 @@ package servicetmpl.app
 import cats.effect.{ ExitCode, IO, IOApp }
 import cats.implicits._
 import pureconfig.ConfigSource
-import servicetmpl.{ HelloWorld, HelloWorldRepo }
 import servicetmpl.app.kafka.KafkaHelloWorld
 import servicetmpl.app.web.Server
+import servicetmpl.helloworld.{ HelloWorld, HelloWorldRepo }
 
 object Main extends IOApp {
   override def run(args: List[String]): IO[ExitCode] = {

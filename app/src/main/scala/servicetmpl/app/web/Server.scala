@@ -4,7 +4,7 @@ import cats.effect.{ ConcurrentEffect, Timer }
 import org.http4s.implicits._
 import org.http4s.server.blaze.BlazeServerBuilder
 import org.http4s.server.middleware.Logger
-import servicetmpl.HelloWorldRepo
+import servicetmpl.helloworld.HelloWorldRepo
 
 object Server {
 

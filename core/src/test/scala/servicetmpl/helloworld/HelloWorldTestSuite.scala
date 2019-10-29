@@ -1,8 +1,8 @@
-package servicetmpl
+package servicetmpl.helloworld
 
-import minitest._
 import cats.effect.IO
-import servicetmpl.HelloWorld.{ Greeting, Name }
+import minitest.SimpleTestSuite
+import servicetmpl.helloworld.HelloWorld.{ Greeting, Name }
 
 object HelloWorldTestSuite extends SimpleTestSuite {
   val helloWorld = HelloWorld.impl[IO]

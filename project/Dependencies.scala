@@ -9,6 +9,7 @@ object Dependencies {
     val pureConfig = "0.12.1"
 
     val log4j2 = "2.12.1"
+    val log4s = "1.8.2"
 
     val http4s = "0.21.0-M5"
     val circe = "0.12.3"
@@ -31,14 +32,10 @@ object Dependencies {
     lazy val fs2Kafka   = "com.ovoenergy" %% "fs2-kafka"   % Versions.fs2Kafka
     lazy val pureConfig = "com.github.pureconfig" %% "pureconfig" % Versions.pureConfig
 
-    lazy val log4j2 = Seq(
-      "org.apache.logging.log4j" % "log4j-api",
-      "org.apache.logging.log4j" % "log4j-core",
-      "org.apache.logging.log4j" % "log4j-slf4j-impl",
-      "org.apache.logging.log4j" % "log4j-1.2-api",
-      "org.apache.logging.log4j" % "log4j-jul",
-    ).map(_ % Versions.log4j2)
-
+    lazy val logging = Seq(
+      "org.apache.logging.log4j" % "log4j-slf4j-impl" % Versions.log4j2,
+      "org.log4s" %% "log4s" % Versions.log4s
+    )
     lazy val http4s = Seq(
       "org.http4s"      %% "http4s-blaze-server" % Versions.http4s,
       "org.http4s"      %% "http4s-blaze-client" % Versions.http4s,

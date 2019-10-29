@@ -1,4 +1,4 @@
-package servicetmpl
+package servicetmpl.helloworld
 
 import cats.FlatMap
 import cats.effect.Sync

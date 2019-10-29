@@ -4,9 +4,9 @@ import cats.effect.Sync
 import cats.implicits._
 import org.http4s.HttpRoutes
 import org.http4s.dsl.Http4sDsl
-import servicetmpl.{ HelloWorld, HelloWorldRepo }
-import servicetmpl.app.JsonCodec._
 import servicetmpl.app.JsonCodec.HelloWorldCodec._
+import servicetmpl.app.JsonCodec._
+import servicetmpl.helloworld.{ HelloWorld, HelloWorldRepo }
 
 object Routes {
 

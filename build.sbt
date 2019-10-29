@@ -16,7 +16,7 @@ lazy val commonSettings = Seq(
     Libraries.miniTest % Test,
     compilerPlugin(Libraries.kindProjector),
     compilerPlugin(Libraries.betterMonadicFor)
-  ) ++ Libraries.log4j2,
+  ) ++ Libraries.logging,
 )
 
 lazy val integrationTestSettings = Defaults.itSettings ++ Seq(
