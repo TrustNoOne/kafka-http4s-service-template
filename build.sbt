@@ -21,10 +21,9 @@ lazy val commonSettings = Seq(
 
 lazy val integrationTestSettings = Defaults.itSettings ++ Seq(
   libraryDependencies ++= Seq(
-    Libraries.miniTest
-  ) ++ Libraries.dockerTestKit
-    ++ Libraries.log4j2
-    .map(_ % IntegrationTest),
+    Libraries.miniTest,
+    Libraries.testContainers
+  ).map(_ % IntegrationTest),
 ) ++ inConfig(IntegrationTest)(Seq(
   fork := true,
   scalafmtOnCompile := true,

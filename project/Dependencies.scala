@@ -18,7 +18,7 @@ object Dependencies {
     val miniTest  = "2.7.0"
 
     // Integration Test
-    val dockerTestkit = "0.9.9"
+    val testContainers = "0.27.0"
 
     // Compiler
     val kindProjector    = "0.10.3"
@@ -54,11 +54,7 @@ object Dependencies {
     lazy val catsLaws  = "org.typelevel" %% "cats-laws" % Versions.cats
 
     // Integration Test
-    lazy val dockerTestKit = Seq(
-      "com.whisk" %% "docker-testkit-core" % Versions.dockerTestkit,
-      "com.whisk" %% "docker-testkit-impl-spotify" % Versions.dockerTestkit,
-      "javax.activation" % "activation" % "1.1.1"
-    )
+    lazy val testContainers ="com.dimafeng" %% "testcontainers-scala" % Versions.testContainers
 
     // Compiler
     lazy val kindProjector    = "org.typelevel" %% "kind-projector"     % Versions.kindProjector

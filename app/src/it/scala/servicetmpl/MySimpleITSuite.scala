@@ -1,23 +1,30 @@
 package servicetmpl
 
+import java.io.File
+
 import cats.effect.IO
 import cats.implicits._
+import com.dimafeng.testcontainers.DockerComposeContainer
 import fs2.Stream
 import fs2.kafka._
 
-object MySimpleITSuite extends SimpleDockerTestSuite with DockerKafkaService {
+object MySimpleITSuite extends DockerTestSuite {
+  override val container = DockerComposeContainer(
+    new File("src/it/resources/docker-compose-kafka.yml")
+  )
+
+  val KafkaPort = 9092
 
   val consumerSettings =
     ConsumerSettings[IO, String, String]
+      .withBootstrapServers(s"127.0.0.1:$KafkaPort")
       .withAutoOffsetReset(AutoOffsetReset.Earliest)
-      .withBootstrapServers(s"localhost:$KafkaAdvertisedPort")
       .withGroupId("group")
 
-  val producerSettings =
-    ProducerSettings[IO, String, String]
-      .withBootstrapServers(s"localhost:$KafkaAdvertisedPort")
+  val producerSettings = ProducerSettings[IO, String, String]
+    .withBootstrapServers(s"127.0.0.1:$KafkaPort")
 
-  test("kafka works") { _ =>
+  integrationTest("kafka works") {
     val producer = Stream
       .emit(ProducerRecords.one(ProducerRecord("topic", "key1", "value1")))
       .covary[IO]
@@ -49,5 +56,4 @@ object MySimpleITSuite extends SimpleDockerTestSuite with DockerKafkaService {
 
     assertEquals(receivedMsg, Some("key1" -> "value1"))
   }
-
 }
