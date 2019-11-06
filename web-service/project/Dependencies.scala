@@ -5,7 +5,7 @@ object Dependencies {
   private[Dependencies] object Versions {
     val cats       = "2.0.0"
     val catsEffect = "2.0.0"
-    val fs2Kafka   = "0.20.1"
+    val fs2Kafka   = "0.20.2"
     val pureConfig = "0.12.1"
 
     val log4j2 = "2.12.1"
@@ -29,7 +29,7 @@ object Dependencies {
   object Libraries {
     lazy val cats       = "org.typelevel" %% "cats-core"   % Versions.cats
     lazy val catsEffect = "org.typelevel" %% "cats-effect" % Versions.catsEffect
-    lazy val fs2Kafka   = "com.ovoenergy" %% "fs2-kafka"   % Versions.fs2Kafka
+    lazy val fs2Kafka   = "com.ovoenergy" %% "fs2-kafka-vulcan"   % Versions.fs2Kafka
     lazy val pureConfig = "com.github.pureconfig" %% "pureconfig" % Versions.pureConfig
 
     lazy val logging = Seq(

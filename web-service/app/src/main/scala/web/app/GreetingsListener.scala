@@ -3,20 +3,14 @@ package web.app
 import cats.effect.{ ConcurrentEffect, ContextShift, Timer }
 import cats.implicits._
 import fs2.kafka._
-import io.circe.Decoder
 import web.service.GreetingsRepo
-import JsonCodec._
 import fs2.Stream
+import fs2.kafka.vulcan.{ avroDeserializer, AvroSettings, SchemaRegistryClientSettings }
 import web.utils.Logging
+import web.app.events.PersonGreeted
 
 import scala.util.control.NonFatal
 import scala.concurrent.duration._
-
-// TODO migrate to avro schemas
-case class PersonGreeted(message: String)
-object PersonGreeted {
-  implicit val decoder: Decoder[PersonGreeted] = io.circe.derivation.deriveDecoder
-}
 
 trait GreetingsListener[F[_]] {
   def readGreetings(): F[Unit]
@@ -41,10 +35,13 @@ private class GreetingsListenerImpl[F[_]](
     with Logging {
   private val log = getLogger[F]
 
+  private val avroSettings =
+    AvroSettings(SchemaRegistryClientSettings[F](config.schemaRegistry.baseUrl))
+
   private val consumerSettings =
     ConsumerSettings[F, Unit, PersonGreeted](
       keyDeserializer = Deserializer.unit[F],
-      valueDeserializer = jsonDeserializer[F, PersonGreeted](log)
+      valueDeserializer = avroDeserializer[PersonGreeted].using(avroSettings)
     ).withAutoOffsetReset(AutoOffsetReset.Latest)
       .withBootstrapServers(config.bootstrapServers)
       .withGroupId(config.groupId)
@@ -53,7 +50,7 @@ private class GreetingsListenerImpl[F[_]](
     .using(consumerSettings)
     .evalTap(_.subscribeTo(config.greetingsTopic))
     .evalTap(_ => log.info("Listening to greetings..."))
-    .flatMap(_.parsedJsonStream)
+    .flatMap(_.stream)
     .mapAsync(25) { committable =>
       greetingsRepo
         .greetingReceived(committable.record.value.message)
@@ -68,5 +65,5 @@ private class GreetingsListenerImpl[F[_]](
           stream
     }
 
-  def readGreetings: F[Unit] = stream.compile.drain
+  def readGreetings(): F[Unit] = stream.compile.drain
 }

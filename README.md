@@ -18,5 +18,5 @@ Todo:
 
 
 To deploy kafka locally for tests:
-- docker-compose -f backend-service/app/src/it/resources up -d
-- docker-compose -f backend-service/app/src/it/resources down
+- docker-compose -f backend-service/app/src/it/resources/docker-compose-kafka.yml up -d
+- docker-compose -f backend-service/app/src/it/resources/docker-compose-kafka.yml down

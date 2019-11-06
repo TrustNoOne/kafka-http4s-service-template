@@ -7,7 +7,9 @@ import fs2.kafka._
 import backend.helloworld.HelloWorld
 import backend.service.events.{ HelloRequested, PersonGreeted }
 import backend.utils.Logging
-import backend.utils.KafkaJsonCodec._
+import fs2.kafka.vulcan.{ AvroSettings, SchemaRegistryClientSettings }
+import fs2.kafka.{ Deserializer, Serializer }
+import fs2.kafka.vulcan.{ avroDeserializer, avroSerializer }
 
 import scala.concurrent.duration._
 import scala.util.control.NonFatal
@@ -31,24 +33,27 @@ private class KafkaGreeterServiceImpl[F[_]: ContextShift: Timer](
     with Logging {
   private val log = getLogger[F]
 
+  private val avroSettings =
+    AvroSettings(SchemaRegistryClientSettings[F](config.kafka.schemaRegistry.baseUrl))
+
   private val consumerSettings =
     ConsumerSettings[F, Unit, HelloRequested](
-      keyDeserializer = Deserializer.unit[F],
-      valueDeserializer = jsonDeserializer[F, HelloRequested](log)
+      keyDeserializer = Deserializer.unit,
+      valueDeserializer = avroDeserializer[HelloRequested].using(avroSettings)
     ).withAutoOffsetReset(AutoOffsetReset.Latest)
       .withBootstrapServers(config.kafka.bootstrapServers)
       .withGroupId(config.kafka.groupId)
 
   private val producerSettings = ProducerSettings[F, Unit, PersonGreeted](
-    keySerializer = Serializer.unit[F],
-    valueSerializer = jsonSerializer[F, PersonGreeted]
+    keySerializer = Serializer.unit,
+    valueSerializer = avroSerializer[PersonGreeted].using(avroSettings)
   ).withBootstrapServers(config.kafka.bootstrapServers)
 
   private val stream: Stream[F, Unit] = consumerStream[F]
     .using(consumerSettings)
     .evalTap(_.subscribeTo(config.helloWorld.requestsTopic))
     .evalTap(_ => log.info("Greeter Started"))
-    .flatMap(_.parsedJsonStream)
+    .flatMap(_.stream)
     .mapAsync(25) { committable =>
       processRequest(committable.record.value).map { greetedEvent =>
         val record = ProducerRecord(config.helloWorld.greetingsTopic, (), greetedEvent)

@@ -7,6 +7,10 @@ lazy val commonSettings = Seq(
   scalafmtOnCompile := true,
   testFrameworks += new TestFramework("minitest.runner.Framework"),
   Test / fork := true,
+  resolvers ++= Seq(
+    Resolver.sonatypeRepo("public"),
+    "Confluent Maven Repo" at "https://packages.confluent.io/maven/"
+  )
 )
 
 lazy val integrationTestSettings = Defaults.itSettings ++ Seq(
@@ -15,6 +19,7 @@ lazy val integrationTestSettings = Defaults.itSettings ++ Seq(
     Libraries.testContainers
   ).map(_ % IntegrationTest),
 ) ++ inConfig(IntegrationTest)(Seq(
+  dependencyClasspath := (dependencyClasspath in IntegrationTest).value ++ (exportedProducts in Test).value,
   fork := true,
   scalafmtOnCompile := true,
 ))
@@ -49,8 +54,6 @@ lazy val `backend-service-app` = project
   .settings(
     mainClass in reStart := Some("backend.service.Main"),
     libraryDependencies ++= Seq(
-      Libraries.circeDerivation,
-      Libraries.circeParser,
       Libraries.fs2Kafka,
       Libraries.pureConfig,
     )

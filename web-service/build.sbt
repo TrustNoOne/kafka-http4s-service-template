@@ -7,6 +7,10 @@ lazy val commonSettings = Seq(
   scalafmtOnCompile := true,
   testFrameworks += new TestFramework("minitest.runner.Framework"),
   Test / fork := true,
+  resolvers ++= Seq(
+    Resolver.sonatypeRepo("public"),
+    "Confluent Maven Repo" at "https://packages.confluent.io/maven/"
+  )
 )
 
 lazy val integrationTestSettings = Defaults.itSettings ++ Seq(

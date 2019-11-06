@@ -1,0 +1,9 @@
+{
+  "type" : "record",
+  "name" : "PersonGreeted",
+  "namespace" : "backend.service",
+  "fields" : [ {
+    "name" : "message",
+    "type" : "string"
+  } ]
+}

@@ -8,19 +8,22 @@ import cats.implicits._
 import com.dimafeng.testcontainers.DockerComposeContainer
 import fs2.Stream
 import fs2.kafka._
+import fs2.kafka.vulcan.{AvroSettings, SchemaRegistryClientSettings, avroSerializer}
 import org.apache.kafka.clients.admin.NewTopic
-import pureconfig.ConfigSource
-import web.app.{Config, GreetingsListener}
+import web.app.GreetingsListener
+import web.app.events.PersonGreeted
 import web.service.GreetingsRepo
 
 import scala.concurrent.duration._
 
 object GreetingsListenerITSuite extends DockerTestSuite {
+  val BootstrapServers = s"127.0.0.1:9092"
+  val SchemaRegistryUrl = "http://127.0.0.1:8081"
+
   override val container = DockerComposeContainer(
     new File("src/it/resources/docker-compose-kafka.yml")
   )
-
-  val KafkaPort = 9092
+  override val serviceChecks = List(SchemaRegistryUrl)
 
   val receivedGreetings = Ref[IO].of(Seq.empty[String]).unsafeRunSync()
   val greetingsRepo: GreetingsRepo[IO] = new GreetingsRepo[IO] {
@@ -28,17 +31,21 @@ object GreetingsListenerITSuite extends DockerTestSuite {
     override def recentGreetings = IO.raiseError(new Exception) // not used here
   }
 
-  val config = ConfigSource.default.loadOrThrow[Config] // use reference conf in IT
   val greetingsTopic = config.kafka.greetingsTopic
   val greetingsListener = GreetingsListener.impl[IO](config.kafka, greetingsRepo)
 
+  private val avroSettings =
+    AvroSettings(SchemaRegistryClientSettings[IO](SchemaRegistryUrl))
 
-  val producerSettings = ProducerSettings[IO, Unit, String]
-    .withBootstrapServers(s"127.0.0.1:$KafkaPort")
+  val producerSettings = ProducerSettings[IO, Unit, PersonGreeted](
+      keySerializer = Serializer.unit[IO],
+      valueSerializer = avroSerializer[PersonGreeted].using(avroSettings)
+    )
+    .withBootstrapServers(BootstrapServers)
     .withClientId("it-producer")
 
   val adminSettings = AdminClientSettings[IO]
-    .withBootstrapServers(s"127.0.0.1:$KafkaPort")
+    .withBootstrapServers(BootstrapServers)
 
   integrationTest("listener receives and processes greetings") {
     val enqueueGreeting = Stream
@@ -46,17 +53,18 @@ object GreetingsListenerITSuite extends DockerTestSuite {
       .fixedDelay(1.second)
       .take(5)
       .map(_ => ProducerRecords(List(
-        ProducerRecord(config.kafka.greetingsTopic, (), """{"message":"111"}"""),
-        ProducerRecord(config.kafka.greetingsTopic, (), """{"message":"222"}""")
+        ProducerRecord(config.kafka.greetingsTopic, (), PersonGreeted("111")),
+        ProducerRecord(config.kafka.greetingsTopic, (), PersonGreeted("222"))
       )))
       .covary[IO]
       .through(produce(producerSettings))
       .compile
       .drain
 
-    val createTopics = adminClientResource(adminSettings).use(_.createTopics(List(
-        new NewTopic(greetingsTopic, 1, 1),
-      )))
+    val createTopics = adminClientResource(adminSettings)
+      .use(_.createTopics(
+        List(new NewTopic(greetingsTopic, 1, 1))
+      ))
 
     val result = for {
       _ <- createTopics
