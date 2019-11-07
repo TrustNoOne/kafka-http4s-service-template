@@ -10,9 +10,10 @@ object Server {
 
   def stream[F[_]: ConcurrentEffect: Timer](
       webConfig: WebConfig,
-      greetings: GreetingsRepo[F]
+      greetings: GreetingsRepo[F],
+      helloRequester: HelloRequester[F]
   ): F[Unit] = {
-    val httpApp = Routes.helloWorldRoutes[F](greetings).orNotFound
+    val httpApp = Routes.helloWorldRoutes[F](greetings, helloRequester).orNotFound
 
     val finalHttpApp = Logger.httpApp(logHeaders = true, logBody = true)(httpApp)
 

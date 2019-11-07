@@ -31,8 +31,8 @@ object GreetingsListenerITSuite extends DockerTestSuite {
     override def recentGreetings = IO.raiseError(new Exception) // not used here
   }
 
-  val greetingsTopic = config.kafka.greetingsTopic
-  val greetingsListener = GreetingsListener.impl[IO](config.kafka, greetingsRepo)
+  val greetingsTopic = config.helloWorld.greetingsTopic
+  val greetingsListener = GreetingsListener.impl[IO](config.kafka, greetingsTopic, greetingsRepo)
 
   private val avroSettings =
     AvroSettings(SchemaRegistryClientSettings[IO](SchemaRegistryUrl))
@@ -53,8 +53,8 @@ object GreetingsListenerITSuite extends DockerTestSuite {
       .fixedDelay(1.second)
       .take(5)
       .map(_ => ProducerRecords(List(
-        ProducerRecord(config.kafka.greetingsTopic, (), PersonGreeted("111")),
-        ProducerRecord(config.kafka.greetingsTopic, (), PersonGreeted("222"))
+        ProducerRecord(greetingsTopic, (), PersonGreeted("111")),
+        ProducerRecord(greetingsTopic, (), PersonGreeted("222"))
       )))
       .covary[IO]
       .through(produce(producerSettings))

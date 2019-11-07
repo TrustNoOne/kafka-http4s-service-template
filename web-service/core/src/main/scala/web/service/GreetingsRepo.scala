@@ -7,7 +7,7 @@ import cats.effect.concurrent.Ref
 import cats.effect.{ Clock, Sync }
 import cats.implicits._
 
-case class StoredGreeting(message: String, receivedAt: ZonedDateTime)
+final case class StoredGreeting(message: String, receivedAt: ZonedDateTime)
 
 trait GreetingsRepo[F[_]] {
   def greetingReceived(message: String): F[Unit]

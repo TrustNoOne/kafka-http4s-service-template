@@ -7,6 +7,10 @@ lazy val commonSettings = Seq(
   scalafmtOnCompile := true,
   testFrameworks += new TestFramework("minitest.runner.Framework"),
   Test / fork := true,
+  libraryDependencies ++= Seq(
+    compilerPlugin(Libraries.kindProjector),
+    compilerPlugin(Libraries.betterMonadicFor),
+  ),
   resolvers ++= Seq(
     Resolver.sonatypeRepo("public"),
     "Confluent Maven Repo" at "https://packages.confluent.io/maven/"
@@ -40,8 +44,6 @@ lazy val `backend-service-core` = project
       Libraries.catsEffect,
       Libraries.catsLaws % Test,
       Libraries.miniTest % Test,
-      compilerPlugin(Libraries.kindProjector),
-      compilerPlugin(Libraries.betterMonadicFor)
     ) ++ Libraries.logging
   )
 

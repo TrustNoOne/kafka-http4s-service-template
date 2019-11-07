@@ -19,13 +19,15 @@ trait GreetingsListener[F[_]] {
 object GreetingsListener {
   def impl[F[_]: ConcurrentEffect: ContextShift: Timer](
       config: KafkaConfig,
+      greetingsTopic: String,
       greetingsRepo: GreetingsRepo[F]
   ): GreetingsListener[F] =
-    new GreetingsListenerImpl(config, greetingsRepo)
+    new GreetingsListenerImpl(config, greetingsTopic, greetingsRepo)
 }
 
 private class GreetingsListenerImpl[F[_]](
-    config: KafkaConfig,
+    kafkaConfig: KafkaConfig,
+    greetingsTopic: String,
     greetingsRepo: GreetingsRepo[F]
 )(
     implicit F: ConcurrentEffect[F],
@@ -36,19 +38,19 @@ private class GreetingsListenerImpl[F[_]](
   private val log = getLogger[F]
 
   private val avroSettings =
-    AvroSettings(SchemaRegistryClientSettings[F](config.schemaRegistry.baseUrl))
+    AvroSettings(SchemaRegistryClientSettings[F](kafkaConfig.schemaRegistry.baseUrl))
 
   private val consumerSettings =
     ConsumerSettings[F, Unit, PersonGreeted](
       keyDeserializer = Deserializer.unit[F],
       valueDeserializer = avroDeserializer[PersonGreeted].using(avroSettings)
     ).withAutoOffsetReset(AutoOffsetReset.Latest)
-      .withBootstrapServers(config.bootstrapServers)
-      .withGroupId(config.groupId)
+      .withBootstrapServers(kafkaConfig.bootstrapServers)
+      .withGroupId(kafkaConfig.groupId)
 
   private val stream: Stream[F, Unit] = consumerStream[F]
     .using(consumerSettings)
-    .evalTap(_.subscribeTo(config.greetingsTopic))
+    .evalTap(_.subscribeTo(greetingsTopic))
     .evalTap(_ => log.info("Listening to greetings..."))
     .flatMap(_.stream)
     .mapAsync(25) { committable =>

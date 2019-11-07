@@ -16,6 +16,7 @@ import scala.concurrent.ExecutionContext
 
 trait DockerTestSuite extends TestSuite[Unit] {
   private val log: log4s.Logger = log4s.getLogger(getClass)
+
   val config = ConfigSource.default.loadOrThrow[Config]
 
   @volatile private var stopped = false
