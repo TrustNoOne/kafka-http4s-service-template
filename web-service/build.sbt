@@ -62,5 +62,5 @@ lazy val `web-service-app` = project
       Libraries.circeParser,
       Libraries.fs2Kafka,
       Libraries.pureConfig,
-    ) ++ Libraries.http4s
+    ) ++ Libraries.http4s ++ Libraries.tapir
   )

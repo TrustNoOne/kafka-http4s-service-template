@@ -1,39 +1,58 @@
 package web.app
 
-import cats.effect.Sync
+import cats.effect.{ ContextShift, Sync }
 import cats.implicits._
 import org.http4s.HttpRoutes
-import org.http4s.dsl.Http4sDsl
-import web.service.GreetingsRepo
-import JsonCodec._
+import tapir._
+import tapir.json.circe._
+import tapir.openapi.OpenAPI
+import tapir.openapi.circe.yaml._
+import tapir.docs.openapi._
+import tapir.server.http4s._
+import tapir.swagger.http4s.SwaggerHttp4s
+import web.app.JsonCodec._
 import web.app.httpapi.HelloRequest
+import web.service.{ GreetingsRepo, StoredGreeting }
 
 object httpapi {
   final case class HelloRequest(name: String)
 }
 
 object Routes {
+  import endpoints._
+  object endpoints {
+    val recentHellos: Endpoint[Unit, Unit, Seq[StoredGreeting], Nothing] = endpoint.get
+      .in("recent-hellos")
+      .out(jsonBody[Seq[StoredGreeting]])
 
-  def helloWorldRoutes[F[_]: Sync](
+    val hello: Endpoint[HelloRequest, Unit, Unit, Nothing] = endpoint.post
+      .in("hello")
+      .in(
+        jsonBody[HelloRequest]
+          .description("The hello request")
+          .example(HelloRequest(name = "Giovanni"))
+      )
+  }
+
+  def openApiRoutes[F[_]: Sync: ContextShift]: HttpRoutes[F] = {
+    val openApiDocs: OpenAPI = List(recentHellos, hello)
+      .toOpenAPI("Hello World web app", "1.0.0")
+    val openApiYml: String = openApiDocs.toYaml
+
+    new SwaggerHttp4s(openApiYml).routes
+  }
+
+  def helloWorldRoutes[F[_]: Sync: ContextShift](
       greetings: GreetingsRepo[F],
       helloRequester: HelloRequester[F]
   ): HttpRoutes[F] = {
-    val dsl = new Http4sDsl[F] {}
-    import dsl._
-    HttpRoutes.of[F] {
-      case GET -> Root / "recent-hellos" =>
-        for {
-          greetings <- greetings.recentGreetings
-          resp <- Ok(greetings)
-        } yield resp
+    val recentHelloRoute = recentHellos
+      .toRoutes(_ => greetings.recentGreetings.map(_.asRight[Unit]))
 
-      case req @ POST -> Root / "hello" =>
-        for {
-          HelloRequest(name) <- req.as[HelloRequest]
-          _ <- helloRequester.requestHello(name)
-          resp <- Ok()
-        } yield resp
+    val helloRoute = hello
+      .toRoutes(r => helloRequester.requestHello(r.name).map(_.asRight[Unit]))
 
-    }
+    recentHelloRoute <+>
+      helloRoute
   }
 }

@@ -10,7 +10,10 @@ import org.http4s.implicits._
 import org.http4s.{ Method, Request, Response, Status }
 import web.service.{ GreetingsRepo, StoredGreeting }
 
+import scala.concurrent.ExecutionContext
+
 object RecentHellosRouteTest extends SimpleTestSuite {
+  implicit val cs = IO.contextShift(ExecutionContext.global)
 
   test("return recent hellos") {
     val helloWorld: GreetingsRepo[IO] = new GreetingsRepo[IO] {

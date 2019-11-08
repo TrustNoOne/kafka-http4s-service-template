@@ -12,6 +12,7 @@ object Dependencies {
     val log4s = "1.8.2"
 
     val http4s = "0.21.0-M5"
+    val tapir = "0.11.9"
     val circe = "0.12.3"
     val circeDerivation = "0.12.0-M7"
 
@@ -42,6 +43,13 @@ object Dependencies {
       "org.http4s"      %% "http4s-blaze-client" % Versions.http4s,
       "org.http4s"      %% "http4s-circe"        % Versions.http4s,
       "org.http4s"      %% "http4s-dsl"          % Versions.http4s,
+    )
+    lazy val tapir = Seq(
+      "com.softwaremill.tapir" %% "tapir-json-circe"         % Versions.tapir,
+      "com.softwaremill.tapir" %% "tapir-http4s-server"      % Versions.tapir,
+      "com.softwaremill.tapir" %% "tapir-openapi-docs"       % Versions.tapir,
+      "com.softwaremill.tapir" %% "tapir-openapi-circe-yaml" % Versions.tapir,
+      "com.softwaremill.tapir" %% "tapir-swagger-ui-http4s"  % Versions.tapir,
     )
 
     lazy val circeDerivation = "io.circe" %% "circe-derivation" % Versions.circeDerivation
