@@ -1,0 +1,9 @@
+{
+  "type" : "record",
+  "name" : "HelloRequested",
+  "namespace" : "backend.service",
+  "fields" : [ {
+    "name" : "name",
+    "type" : "string"
+  } ]
+}
