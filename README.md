@@ -9,6 +9,7 @@ Todo:
 - [x] use avro serialization w/ schemas for messages 
 - [x] cleanup/better logging
 - [x] other service to interact with this one
+- [x] added ZIO versions
 - [ ] helm/k8s deployment
 - [ ] HTTP Integration test 
 - [ ] Boilerplate for paginated http apis 
@@ -18,5 +19,5 @@ Todo:
 
 
 To deploy kafka locally for tests:
-- docker-compose -f backend-service/app/src/it/resources/docker-compose-kafka.yml up -d
-- docker-compose -f backend-service/app/src/it/resources/docker-compose-kafka.yml down
+- docker-compose -f cats/backend/app/src/it/resources/docker-compose-kafka.yml up -d
+- docker-compose -f cats/backend/app/src/it/resources/docker-compose-kafka.yml down
