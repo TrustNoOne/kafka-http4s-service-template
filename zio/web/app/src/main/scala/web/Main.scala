@@ -4,13 +4,15 @@ import org.http4s.implicits._
 import org.http4s.server.Router
 import org.http4s.server.blaze.BlazeServerBuilder
 import org.http4s.server.middleware.Logger
+import web.kafka.KafkaProducer
 import web.module.HelloRequester.HelloRequested
-import web.module.{ GreetingsListener, GreetingsRepo, HelloRequester, KafkaProducerBuilder, StoredGreeting }
+import web.module.{ GreetingsListener, GreetingsRepo, HelloRequester }
 import zio._
 import zio.clock.Clock
 import zio.config.{ config, Config }
-import zio.console.Console
 import zio.interop.catz.{ console => _, _ }
+import zio.macros.delegate._
+import zio.macros.delegate.syntax._
 import zio.logging._
 import zio.logging.slf4j._
 
@@ -35,80 +37,59 @@ object AppLogging {
     }
 }
 
-object Main extends App {
-  val env =
-    for {
-      configEnv <- ZManaged.fromEffect(Config.fromEnv(AppConfig.decription))
-      clockEnv <- ZManaged.fromEffect(clock.clockService)
-      consoleEnv <- ZManaged.fromEffect(console.consoleService)
-      loggingEnv <- ZManaged.fromEffect(AppLogging.env)
-      repoBuffer <- ZManaged.fromEffect(Ref.make(Seq.empty[StoredGreeting]))
-      kafkaHelloReqProd <- KafkaProducerBuilder.Live.kafkaProducerBuilder
-                            .getKafkaProducer[Unit, HelloRequested]
-                            .provide(configEnv)
-    } yield new Config[AppConfig]
-      with Console
-      with Clock
+object Main extends ManagedApp {
+
+  override def run(args: List[String]): ZManaged[ZEnv, Nothing, Int] = {
+    type Env = Clock
+      with Config[AppConfig]
       with Logging[String]
-      with LoggingContext
-      with GreetingsRepo.Live
-      with GreetingsListener.Live
-      with HelloRequester.Live {
-      // Provided by ZEnv
-      val clock   = clockEnv
-      val console = consoleEnv
+      with GreetingsListener
+      with GreetingsRepo
+      with HelloRequester
 
-      // Other effectful dependencies
-      val loggingContext = loggingEnv.loggingContext
-      val logging        = loggingEnv.logging
-      val config         = configEnv.config
+    def runServer: ZIO[Env, Throwable, Unit] =
+      ZIO
+        .runtime[Env]
+        .flatMap { implicit rt =>
+          for {
+            _ <- logger.info("Starting web app...")
 
-      override val liveGreetingsRepoBufferSize = 3
-      override val liveGreetingsRepoBufferRef  = repoBuffer
-      override val kafkaHelloRequestedProducer = kafkaHelloReqProd
-    }
+            listener <- GreetingsListener.>.readGreetings.fork
 
-  override def run(args: List[String]): ZIO[ZEnv, Nothing, Int] = {
-    import Routes.Env
-    val httpServer: ZIO[Env, Throwable, Unit] = ZIO.runtime[Env].flatMap { implicit rt =>
-      for {
-        conf <- config[AppConfig]
+            httpApp = Router[RIO[Env, *]](
+              "/" -> Routes.appRoutes,
+              "/docs" -> Routes.openApiRoutes
+            ).orNotFound
 
-        httpApp = Router[RIO[Env, *]](
-          "/" -> Routes.appRoutes,
-          "/docs" -> Routes.openApiRoutes
-        ).orNotFound
+            loggedHttpApp = Logger.httpApp[RIO[Env, *]](
+              logHeaders = true,
+              logBody = true,
+              logAction = Some(s => logger.debug(s))
+            )(httpApp)
 
-        loggedHttpApp = Logger.httpApp[RIO[Env, *]](
-          logHeaders = true,
-          logBody = true,
-          logAction = Some(s => logger.debug(s))
-        )(httpApp)
+            conf <- config[AppConfig]
+            _ <- BlazeServerBuilder[RIO[Env, *]]
+                  .bindHttp(conf.web.listenPort, conf.web.listenHost)
+                  .withHttpApp(loggedHttpApp)
+                  .serve
+                  .compile
+                  .drain
 
-        server <- BlazeServerBuilder[RIO[Env, *]]
-                   .bindHttp(conf.web.listenPort, conf.web.listenHost)
-                   .withHttpApp(loggedHttpApp)
-                   .serve
-                   .compile
-                   .drain
+            _ <- listener.interrupt
+          } yield ()
+        }
 
-      } yield server
-    }
-
-    val program =
-      for {
-        _ <- logger.info("Starting web app...")
-        listener <- GreetingsListener.>.readGreetings.fork
-
-        _ <- httpServer
-        _ <- listener.interrupt
-      } yield ()
-
-    program
-      .provideSomeManaged(env)
+    (ZIO.environment[ZEnv] @@
+      enrichWithM(Config.fromEnv(AppConfig.decription)) @@
+      enrichWithM(AppLogging.env) @@
+      enrichWithM(GreetingsRepo.Live.make(3)) @@
+      enrichWithM(GreetingsListener.Live.make) @@
+      enrichWithManaged(
+        KafkaProducer.make[Unit, HelloRequested].mapM(HelloRequester.Live.make)
+      ) >>> runServer.toManaged_)
       .foldM(
-        fail => zio.console.putStrLn(s"Initialization Failed $fail") *> ZIO.succeed(1),
-        _ => ZIO.succeed(0)
+        fail => console.putStrLn(s"Initialization Failed $fail").as(1).toManaged_,
+        _ => ZManaged.succeed(0)
       )
   }
 }

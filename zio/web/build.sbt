@@ -16,6 +16,7 @@ lazy val commonSettings = Seq(
   testFrameworks := Seq(new TestFramework("zio.test.sbt.ZTestFramework")),
   Test / fork := true,
   Test / scalafmtOnCompile := true,
+  scalacOptions += "-Ymacro-annotations",
 )
 
  lazy val integrationTestSettings = Defaults.itSettings ++ Seq(
@@ -41,7 +42,8 @@ lazy val `web-service-core` = project
   .settings(commonSettings: _*)
   .settings(
     libraryDependencies ++= Seq(
-      Libraries.zio
+      Libraries.zio,
+      Libraries.zioMacros,
     ) ++ Libraries.logging
       ++ Libraries.zioTest.map(_ % Test)
   )

@@ -5,21 +5,19 @@ import fs2.kafka._
 import _root_.vulcan.Codec
 import web.AppConfig
 import zio._
-import zio.config.{ Config, config => getConfig }
+import zio.config.Config
 
 trait HelloRequester {
-  val helloRequester: HelloRequester.Service[HelloRequester.Env]
+  val helloRequester: HelloRequester.Service[Any]
 }
 
 object HelloRequester {
-  type Env = Config[AppConfig]
-
-  trait Service[R] {
+  trait Service[-R] {
     def requestHello(name: String): ZIO[R, Throwable, Unit]
   }
 
   object > {
-    def requestHello(name: String): ZIO[Env with HelloRequester, Throwable, Unit] =
+    def requestHello(name: String): ZIO[HelloRequester, Throwable, Unit] =
       ZIO.accessM(_.helloRequester.requestHello(name))
   }
 
@@ -35,17 +33,25 @@ object HelloRequester {
     }
   }
 
-  trait Live extends HelloRequester {
-
-    val kafkaHelloRequestedProducer: kafka.KafkaProducer[RIO[Env, *], Unit, HelloRequested]
-
+  case class Live private (
+      config: Config.Service[AppConfig],
+      kafkaHelloRequestedProducer: kafka.KafkaProducer[RIO[Any, *], Unit, HelloRequested]
+  ) extends HelloRequester {
     override val helloRequester = (name: String) => {
       for {
-        conf <- getConfig[AppConfig]
+        conf <- config.config
         record = ProducerRecords.one(ProducerRecord(conf.helloWorld.requestsTopic, (), HelloRequested(name)))
         _ <- kafkaHelloRequestedProducer.produce(record).flatten.map(_.passthrough)
       } yield ()
     }
+  }
 
+  object Live {
+    def make(
+        producer: kafka.KafkaProducer[RIO[Any, *], Unit, HelloRequested]
+    ): ZIO[Config[AppConfig], Nothing, HelloRequester] =
+      ZIO
+        .environment[Config[AppConfig]]
+        .map(e => new Live(e.config, producer))
   }
 }

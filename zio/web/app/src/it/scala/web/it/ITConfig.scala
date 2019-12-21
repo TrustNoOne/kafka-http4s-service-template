@@ -9,14 +9,23 @@ import web.module.HelloRequester.HelloRequested
 import zio.{ Task, UIO, ZIO }
 import zio.config.Config
 import zio.interop.catz._
+import zio.logging.Logging
+import zio.logging.slf4j.Slf4jLogger
 
 trait ITConfig {
   val helloWorldConfig = HelloWorldConfig("hellos", "greets")
   val kafkaConfig      = KafkaConfig(BootstrapServers, "it-test-group", SchemaRegistryUrl)
   val webConfig        = WebConfig("127.0.0.1", 11223)
   val appConfig        = AppConfig(webConfig, kafkaConfig, helloWorldConfig)
-  val configService = new Config.Service[AppConfig] {
-    override def config: UIO[AppConfig] = ZIO.succeed(appConfig)
+
+  val itConfig: Config[AppConfig] = new Config[AppConfig] {
+    override def config: Config.Service[AppConfig] = new Config.Service[AppConfig] {
+      override def config: UIO[AppConfig] = ZIO.succeed(appConfig)
+    }
+  }
+
+  val testLogging: Logging[String] = new Slf4jLogger.Live {
+    override def formatMessage(msg: String): UIO[String] = ZIO.succeed(msg)
   }
 
   val avroSettings =
