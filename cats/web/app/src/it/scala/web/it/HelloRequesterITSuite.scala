@@ -6,13 +6,13 @@ import cats.effect.IO
 import cats.implicits._
 import com.dimafeng.testcontainers.DockerComposeContainer
 import fs2.kafka._
-import fs2.kafka.vulcan.{AvroSettings, SchemaRegistryClientSettings, avroDeserializer, avroSerializer}
+import fs2.kafka.vulcan.{ avroDeserializer, avroSerializer, AvroSettings, SchemaRegistryClientSettings }
 import org.apache.kafka.clients.admin.NewTopic
 import web.app.HelloRequester
-import web.app.events.{HelloRequested, PersonGreeted}
+import web.app.events.{ HelloRequested, PersonGreeted }
 
 object HelloRequesterITSuite extends DockerTestSuite {
-  val BootstrapServers = s"127.0.0.1:9092"
+  val BootstrapServers  = s"127.0.0.1:9092"
   val SchemaRegistryUrl = "http://127.0.0.1:8081"
 
   override val container = DockerComposeContainer(
@@ -26,10 +26,9 @@ object HelloRequesterITSuite extends DockerTestSuite {
     AvroSettings(SchemaRegistryClientSettings[IO](SchemaRegistryUrl))
 
   val producerSettings = ProducerSettings[IO, Unit, PersonGreeted](
-      keySerializer = Serializer.unit[IO],
-      valueSerializer = avroSerializer[PersonGreeted].using(avroSettings)
-    )
-    .withBootstrapServers(BootstrapServers)
+    keySerializer = Serializer.unit[IO],
+    valueSerializer = avroSerializer[PersonGreeted].using(avroSettings)
+  ).withBootstrapServers(BootstrapServers)
     .withClientId("it-producer")
 
   val adminSettings = AdminClientSettings[IO]
@@ -51,7 +50,6 @@ object HelloRequesterITSuite extends DockerTestSuite {
     val createTopics = adminClientResource(adminSettings)
       .use(_.createTopics(List(new NewTopic(requestsTopic, 1, 1))))
 
-
     val readHelloRequested = consumerStream[IO]
       .using(consumerSettings)
       .evalTap(_.subscribeTo(requestsTopic))
@@ -66,7 +64,6 @@ object HelloRequesterITSuite extends DockerTestSuite {
       _ <- requestHello
       hr <- readHelloRequested
     } yield hr
-
 
     assertEquals(result.unsafeRunSync(), Some(HelloRequested("yolo")))
   }

@@ -3,7 +3,7 @@ package backend.it
 import java.io.File
 
 import backend.helloworld.HelloWorld
-import backend.service.{KafkaGreeterService, Schemas}
+import backend.service.{ KafkaGreeterService, Schemas }
 import cats.effect.IO
 import cats.implicits._
 import com.dimafeng.testcontainers.DockerComposeContainer
@@ -14,7 +14,7 @@ import org.apache.kafka.clients.admin.NewTopic
 import scala.concurrent.duration._
 
 object KafkaGreeterServiceITSuite extends DockerTestSuite {
-  val BootstrapServers = s"127.0.0.1:9092"
+  val BootstrapServers  = s"127.0.0.1:9092"
   val SchemaRegistryUrl = "http://127.0.0.1:8081"
 
   override val container = DockerComposeContainer(
@@ -27,7 +27,7 @@ object KafkaGreeterServiceITSuite extends DockerTestSuite {
       HelloWorld.Greeting(s"test: ${n.name}").pure[IO]
   }
 
-  val requestsTopic = config.helloWorld.requestsTopic
+  val requestsTopic  = config.helloWorld.requestsTopic
   val greetingsTopic = config.helloWorld.greetingsTopic
   val greeterService = KafkaGreeterService.impl[IO](config, helloWorld)
 
@@ -46,10 +46,10 @@ object KafkaGreeterServiceITSuite extends DockerTestSuite {
     .withBootstrapServers(BootstrapServers)
 
   integrationTest("greeter emits greetings") {
-    val helloBytes = AvroTestUtil.serialize(SchemaRegistryUrl, requestsTopic, Schemas.HelloRequested,"name" -> "xyz")
+    val helloBytes = AvroTestUtil.serialize(SchemaRegistryUrl, requestsTopic, Schemas.HelloRequested, "name" -> "xyz")
 
     val enqueueRequestEvent = Stream
-      // it could take a while for greeter to subscribe (latest), we retry a few times to be sure it's received
+    // it could take a while for greeter to subscribe (latest), we retry a few times to be sure it's received
       .fixedDelay(1.second)
       .take(5)
       .map(_ => ProducerRecords.one(ProducerRecord(requestsTopic, (), helloBytes)))
@@ -67,10 +67,14 @@ object KafkaGreeterServiceITSuite extends DockerTestSuite {
       .compile
       .last
 
-    val createTopics = adminClientResource(adminSettings).use(_.createTopics(List(
-        new NewTopic(requestsTopic, 1, 1),
-        new NewTopic(greetingsTopic, 1, 1),
-      )))
+    val createTopics = adminClientResource(adminSettings).use(
+      _.createTopics(
+        List(
+          new NewTopic(requestsTopic, 1, 1),
+          new NewTopic(greetingsTopic, 1, 1)
+        )
+      )
+    )
 
     val result = for {
       _ <- createTopics
@@ -81,7 +85,8 @@ object KafkaGreeterServiceITSuite extends DockerTestSuite {
       _ <- greeter.cancel
     } yield receivedEvent
 
-    val expectedBytes = AvroTestUtil.serialize(SchemaRegistryUrl, greetingsTopic, Schemas.PersonGreeted,"message" -> "test: xyz")
+    val expectedBytes =
+      AvroTestUtil.serialize(SchemaRegistryUrl, greetingsTopic, Schemas.PersonGreeted, "message" -> "test: xyz")
     assertEquals(result.unsafeRunSync().get.toSeq, expectedBytes.toSeq)
   }
 }

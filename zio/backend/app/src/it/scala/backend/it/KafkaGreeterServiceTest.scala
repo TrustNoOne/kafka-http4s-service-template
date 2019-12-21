@@ -58,8 +58,7 @@ private object Fixture {
     .withBootstrapServers(BootstrapServers)
 
   trait HelloWorldTest extends HelloWorld {
-    override val helloWorld: HelloWorld.Service[Any] = (n: Name) =>
-      ZIO.succeed(Greeting(s"test: ${n.name}"))
+    override val helloWorld: HelloWorld.Service[Any] = (n: Name) => ZIO.succeed(Greeting(s"test: ${n.name}"))
   }
 
   trait TestEnv

@@ -27,7 +27,7 @@ lazy val integrationTestSettings = Defaults.itSettings ++ Seq(
   dependencyClasspath := (dependencyClasspath in IntegrationTest).value ++ (exportedProducts in Test).value,
   fork := true,
   scalafmtOnCompile := true,
-))
+) ++ ScalafmtPlugin.scalafmtConfigSettings)
 
 
 lazy val `web-service` = project
