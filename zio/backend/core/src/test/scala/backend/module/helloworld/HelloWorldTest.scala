@@ -9,10 +9,10 @@ object HelloWorldTest
       suite("HelloWorld")(
         testM("return hello xxxx") {
           checkM(Gen.anyString) { name =>
-            val result         = helloworld.hello(Name(name))
+            val result         = HelloWorld.>.hello(Name(name))
             val expectedResult = Greeting(s"Hello, $name")
             assertM(result, equalTo(expectedResult))
-              .provide(HelloWorld.Live)
+              .provide(new HelloWorld.Live {})
           }
         }
       )

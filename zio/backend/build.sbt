@@ -39,7 +39,8 @@ lazy val `backend-service-core` = project
   .settings(commonSettings: _*)
   .settings(
     libraryDependencies ++= Seq(
-      Libraries.zio
+      Libraries.zio,
+      Libraries.zioMacros,
     ) ++ Libraries.logging
       ++ Libraries.zioTest.map(_ % Test)
   )

@@ -15,8 +15,14 @@ object HelloWorld {
   }
 
   trait Live extends HelloWorld {
-    override val helloWorld: HelloWorld.Service[Any] =
+    override val helloWorld: Service[Any] =
       (n: Name) => ZIO.succeed(Greeting("Hello, " + n.name))
   }
+
   object Live extends Live
+
+  object > {
+    def hello(name: Name): ZIO[HelloWorld, Nothing, Greeting] =
+      ZIO.accessM(_.helloWorld.hello(name))
+  }
 }

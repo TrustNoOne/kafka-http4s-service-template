@@ -3,10 +3,11 @@ package backend
 import backend.module.helloworld.HelloWorld
 import backend.service.KafkaGreeter
 import zio._
-import zio.clock.Clock
 import zio.config.Config
 import zio.logging.slf4j._
 import zio.logging.{ Logging, _ }
+import zio.macros.delegate._
+import zio.macros.delegate.syntax._
 
 object AppLogging {
   val correlationId: ContextKey[String] =
@@ -30,31 +31,16 @@ object AppLogging {
 
 object Main extends App {
 
-  val env = for {
-    clockEnv <- clock.clockService
-    consoleEnv <- console.consoleService
-    loggingEnv <- AppLogging.env
-    configEnv <- Config.fromEnv(AppConfig.decription)
-  } yield new Config[AppConfig]
-    with console.Console
-    with Clock
-    with Logging[String]
-    with LoggingContext
-    with HelloWorld.Live
-    with KafkaGreeter.Live {
-    // Provided by ZEnv
-    val clock   = clockEnv
-    val console = consoleEnv
-    // Other effectful dependencies
-    val loggingContext = loggingEnv.loggingContext
-    val logging        = loggingEnv.logging
-    val config         = configEnv.config
-  }
+  val env = ZIO.environment[ZEnv] @@
+    enrichWithM(AppLogging.env) @@
+    enrichWithM(Config.fromEnv(AppConfig.decription)) @@
+    enrichWith[HelloWorld](HelloWorld.Live) @@
+    enrichWithM(KafkaGreeter.Live.make)
 
   override def run(args: List[String]): ZIO[ZEnv, Nothing, Int] = {
     val program = for {
       _ <- logger.info("Starting backend app...")
-      _ <- service.start()
+      _ <- KafkaGreeter.>.start()
     } yield ()
 
     program

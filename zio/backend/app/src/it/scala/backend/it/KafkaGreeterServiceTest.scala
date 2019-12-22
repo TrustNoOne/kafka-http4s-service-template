@@ -7,17 +7,18 @@ import zio.{ test => _, _ }
 import zio.test._
 import zio.interop.catz._
 import zio.interop.catz.implicits._
+import zio.macros.delegate._
+import zio.macros.delegate.syntax._
 import Assertion._
 import Fixture._
 import backend.it.KafkaContainerAspect.{ BootstrapServers, SchemaRegistryUrl }
 import backend.module.helloworld._
-import backend.{ service, AppConfig, HelloWorldConfig, KafkaConfig }
+import backend.{ AppConfig, HelloWorldConfig, KafkaConfig }
 import backend.service.{ KafkaGreeter, Schemas }
 import com.dimafeng.testcontainers.DockerComposeContainer
 import fs2.Stream
 import fs2.kafka._
 import org.apache.kafka.clients.admin.NewTopic
-import zio.clock.Clock
 import zio.config.Config
 import zio.logging.slf4j.Slf4jLogger
 
@@ -37,7 +38,11 @@ private object Fixture {
 
   val helloWorldConfig = HelloWorldConfig("hellos", "greets")
   val kafkaConfig      = KafkaConfig(BootstrapServers, "it-test-group", SchemaRegistryUrl)
-  val appConfig        = AppConfig(kafkaConfig, helloWorldConfig)
+  val appConfig: Config[AppConfig] = new Config[AppConfig] {
+    override def config: Config.Service[AppConfig] = new Config.Service[AppConfig] {
+      override def config: UIO[AppConfig] = UIO.succeed(AppConfig(kafkaConfig, helloWorldConfig))
+    }
+  }
 
   val consumerSettings =
     ConsumerSettings[Task, Unit, Array[Byte]](
@@ -58,23 +63,14 @@ private object Fixture {
     .withBootstrapServers(BootstrapServers)
 
   trait HelloWorldTest extends HelloWorld {
-    override val helloWorld: HelloWorld.Service[Any] = (n: Name) => ZIO.succeed(Greeting(s"test: ${n.name}"))
+    override val helloWorld: HelloWorld.Service[Any] =
+      (n: Name) => ZIO.succeed(Greeting(s"test: ${n.name}"))
   }
 
-  trait TestEnv
-      extends Config[AppConfig]
-      with Slf4jLogger.Live
-      with Clock.Live
-      with KafkaGreeter.Live
-      with HelloWorldTest
-
-  val env =
-    Managed.succeed(new TestEnv {
-      override def formatMessage(msg: String) = ZIO.succeed(msg)
-      override def config: Config.Service[AppConfig] = new Config.Service[AppConfig] {
-        def config = UIO.succeed(appConfig)
-      }
-    })
+  val env = ZIO.succeed(new Slf4jLogger.Live with HelloWorldTest {
+    override def formatMessage(msg: String): UIO[String] = ZIO.succeed(msg)
+  }) @@ enrichWith(appConfig) @@
+    enrichWithM(KafkaGreeter.Live.make)
 
 }
 
@@ -82,7 +78,7 @@ object KafkaGreeterServiceTest
     extends DefaultRunnableSpec(
       suite("Greeter Service")(
         testM("greets someone") {
-          ZIO.runtime[TestEnv].flatMap {
+          ZIO.runtime[Any].flatMap {
             implicit rt =>
               import helloWorldConfig._
               val helloBytes = AvroTestUtil
@@ -117,7 +113,7 @@ object KafkaGreeterServiceTest
 
               val result = for {
                 _ <- createTopics
-                greeter <- service.start().fork
+                greeter <- KafkaGreeter.>.start().fork
                 requester <- enqueueRequestEvent.fork
                 receivedEvent <- readGreetingEvent
                 _ <- requester.interrupt
@@ -130,5 +126,5 @@ object KafkaGreeterServiceTest
               assertM(result, isSome(equalTo(expectedBytes)))
           }
         }
-      ).provideManaged(Fixture.env) @@ KafkaContainerAspect.aspect
+      ).provideManaged(Fixture.env.toManaged_) @@ KafkaContainerAspect.aspect
     )

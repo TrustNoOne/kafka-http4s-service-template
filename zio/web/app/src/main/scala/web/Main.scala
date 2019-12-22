@@ -84,9 +84,8 @@ object Main extends ManagedApp {
       enrichWithM(AppLogging.env) @@
       enrichWithM(GreetingsRepo.Live.make(3)) @@
       enrichWithM(GreetingsListener.Live.make) @@
-      enrichWithManaged(
-        KafkaProducer.make[Unit, HelloRequested].mapM(HelloRequester.Live.make)
-      ) >>> runServer.toManaged_)
+      enrichWithManaged(KafkaProducer.make[Unit, HelloRequested].mapM(HelloRequester.Live.make)) >>>
+      runServer.toManaged_)
       .foldM(
         fail => console.putStrLn(s"Initialization Failed $fail").as(1).toManaged_,
         _ => ZManaged.succeed(0)
