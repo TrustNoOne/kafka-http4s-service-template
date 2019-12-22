@@ -6,7 +6,9 @@ import _root_.vulcan.Codec
 import web.AppConfig
 import zio._
 import zio.config.Config
+import zio.macros.annotation.mockable
 
+@mockable
 trait HelloRequester {
   val helloRequester: HelloRequester.Service[Any]
 }

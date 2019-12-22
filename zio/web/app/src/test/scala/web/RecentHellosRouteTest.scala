@@ -5,6 +5,8 @@ import java.time.OffsetDateTime
 import org.http4s.{ Method, Request, Status }
 import org.http4s.implicits._
 import web.module.{ GreetingsRepo, HelloRequester, StoredGreeting }
+import zio.test.mock.Expectation
+import zio.test.mock.Expectation.{ unit, value }
 import zio.interop.catz._
 import zio.test._
 import zio.test.Assertion._
@@ -17,34 +19,24 @@ object RecentHellosRouteTest
           val postHello = Request[RIO[HelloRequester, *]](Method.POST, uri"/hello")
             .withEntity("""{"name":"yolo"}""")
 
-          for {
-            received <- Ref.make("nothing received")
-            testEnv = new HelloRequester {
-              override val helloRequester = (name: String) => received.set(name)
-            }
+          val mockedEnv: Expectation[HelloRequester, Nothing, Unit] =
+            HelloRequester.requestHello(equalTo("yolo")) returns unit
 
-            resp <- Routes
-                     .helloRoute(postHello)
-                     .value
-                     .provide(testEnv)
+          val result = Routes
+            .helloRoute[HelloRequester]
+            .orNotFound(postHello)
+            .provideManaged(mockedEnv.managedEnv)
 
-            statusIsOk = assert(resp.map(_.status), isSome(equalTo(Status.Ok)))
-            yoloIsReceived <- assertM(received.get, equalTo("yolo"))
-
-          } yield statusIsOk && yoloIsReceived
+          assertM(result.map(_.status), equalTo(Status.Ok))
         },
         testM("returns recent greetings") {
-          val testEnv = new GreetingsRepo {
-            override val greetingsRepo = new GreetingsRepo.Service[Any] {
-              override def greetingReceived(message: String) = ZIO.unit
-              override def recentGreetings = ZIO.succeed(
-                Seq(
-                  StoredGreeting("msg1", OffsetDateTime.parse("2007-12-03T10:15:30+01:00")),
-                  StoredGreeting("msg2", OffsetDateTime.parse("2007-12-04T10:15:30+01:00"))
-                )
+          val testEnv: Expectation[GreetingsRepo, Nothing, Seq[StoredGreeting]] =
+            GreetingsRepo.recentGreetings returns value(
+              Seq(
+                StoredGreeting("msg1", OffsetDateTime.parse("2007-12-03T10:15:30+01:00")),
+                StoredGreeting("msg2", OffsetDateTime.parse("2007-12-04T10:15:30+01:00"))
               )
-            }
-          }
+            )
 
           val request = Request[RIO[GreetingsRepo, *]](Method.GET, uri"/recent-hellos")
 
@@ -52,7 +44,7 @@ object RecentHellosRouteTest
             .recentGreetingsRoute[GreetingsRepo]
             .orNotFound(request)
             .flatMap(_.as[String])
-            .provide(testEnv)
+            .provideManaged(testEnv.managedEnv)
 
           val expected = """[{"message":"msg1","receivedAt":"2007-12-03T10:15:30+01:00"},""" +
             """{"message":"msg2","receivedAt":"2007-12-04T10:15:30+01:00"}]"""

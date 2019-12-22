@@ -4,7 +4,9 @@ import java.time.OffsetDateTime
 
 import zio._
 import zio.clock.Clock
+import zio.macros.annotation.mockable
 
+@mockable
 trait GreetingsRepo {
   val greetingsRepo: GreetingsRepo.Service[Any]
 }
